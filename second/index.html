@@ -18,8 +18,8 @@
   <div class="card">
     <h1>LIFF User Capture</h1>
     <p>LIFF 初期化 → userId / displayName を取得し、GAS Web App に送信します。</p>
-    <p><strong>Webhook URL</strong> は <code>WEBAPP_URL</code> を差し替えてください。</p>
     <button id="btn">LIFF init & send</button>
+    <button id="btn-test">Test POST (no LIFF)</button>
     <div id="status" class="log" style="margin-top:12px;">waiting...</div>
   </div>
 
@@ -30,11 +30,31 @@
 
     const logEl = document.getElementById("status");
     const btn = document.getElementById("btn");
+    const btnTest = document.getElementById("btn-test");
 
     const log = (msg) => {
       console.log(msg);
       logEl.textContent = typeof msg === "string" ? msg : JSON.stringify(msg, null, 2);
     };
+
+    btnTest.addEventListener("click", async () => {
+      btnTest.disabled = true;
+      try {
+        log("Sending test POST...");
+        const resp = await fetch(WEBAPP_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: "test-user-123", displayName: "テストユーザー" })
+        });
+        const json = await resp.json();
+        log({ step: "test-posted", response: json });
+      } catch (err) {
+        console.error(err);
+        log({ step: "error", message: err && err.message ? err.message : String(err) });
+      } finally {
+        btnTest.disabled = false;
+      }
+    });
 
     btn.addEventListener("click", async () => {
       btn.disabled = true;
