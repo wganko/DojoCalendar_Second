@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DojoCalendar LIFF Bridge</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 16px; background: #f7f7f7; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+    h1 { margin: 0 0 12px; font-size: 20px; }
+    .log { white-space: pre-wrap; background: #111; color: #eee; border-radius: 8px; padding: 12px; font-size: 13px; }
+    button { padding: 10px 16px; border-radius: 8px; border: 1px solid #0a9159; background: #10b981; color: #fff; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>LIFF User Capture</h1>
+    <p>LIFF 初期化 → userId / displayName を取得し、GAS Web App に送信します。</p>
+    <p><strong>Webhook URL</strong> は <code>WEBAPP_URL</code> を差し替えてください。</p>
+    <button id="btn">LIFF init & send</button>
+    <div id="status" class="log" style="margin-top:12px;">waiting...</div>
+  </div>
+
+  <script>
+    const LIFF_ID = "2008797678-yhVb8YMW";
+    // TODO: Deploy Web App and set the exec URL below.
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyCMh4flmia93gMGMnp905TCezOIzzewsqo8qOE-aWVzkBEp2x1wRVmLH4TeKLZjE5xCQ/exec";
+
+    const logEl = document.getElementById("status");
+    const btn = document.getElementById("btn");
+
+    const log = (msg) => {
+      console.log(msg);
+      logEl.textContent = typeof msg === "string" ? msg : JSON.stringify(msg, null, 2);
+    };
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        log("Initializing LIFF...");
+        await liff.init({ liffId: LIFF_ID });
+        log("LIFF initialized. Getting profile...");
+
+        const profile = await liff.getProfile();
+        const userId = profile.userId;
+        const displayName = profile.displayName;
+
+        log({ step: "profile", userId, displayName });
+
+        const resp = await fetch(WEBAPP_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, displayName })
+        });
+        const json = await resp.json();
+        log({ step: "posted", response: json });
+      } catch (err) {
+        console.error(err);
+        log({ step: "error", message: err && err.message ? err.message : String(err) });
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
