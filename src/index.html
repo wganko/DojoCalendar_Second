@@ -1,0 +1,97 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
+        margin: 16px;
+        background: #fafafa;
+      }
+      .header { margin-bottom: 14px; }
+      .title { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
+      .badge { display: inline-block; padding: 8px 18px; border-radius: 999px; background: #f3f3f3; margin-left: 10px; font-size: 22px; font-weight: 700; }
+      .muted { color: #666; }
+      .month-sep { margin: 20px 0 8px; padding: 8px 12px; font-weight: 700; font-size: 16px; color: #555; background: #eaeaea; border-radius: 8px; }
+      .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; margin: 10px 0; background: #fff; }
+      .sat { background: #e8f4ff; }
+      .sun { background: #ffecec; }
+      .meta { margin: 6px 0; line-height: 1.6; font-size: 15px; }
+      .label { font-weight: 700; }
+      .dow-tag { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 16px; font-weight: 800; margin-left: 10px; background: rgba(255,255,255,0.6); }
+      .dow-sat { color: #0b4fa2; }
+      .dow-sun { color: #d60000; }
+      .loc-link { text-decoration: underline; color: inherit; }
+      pre { white-space: pre-wrap; margin: 8px 0 0; font-size: 14px; color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="title">
+        尺八道場 <span class="badge"><?= groupLabel ?></span>
+      </div>
+      <div class="muted">（都山流本部の配布資料に基づく日程表示）</div>
+    </div>
+    <div id="list"></div>
+    <script id="events-data" type="application/json"><?!= eventsJson ?></script>
+    <script id="config-data" type="application/json"><?!= configJson ?></script>
+    <script>
+      const events = JSON.parse(document.getElementById("events-data").textContent || "[]");
+      const config = JSON.parse(document.getElementById("config-data").textContent || "{}");
+      function renderEvents(listEl, eventsList) {
+        let lastMonthKey = "";
+        for (const ev of eventsList) {
+          const [datePart] = ev.start.split(" ");
+          const [y, m, d] = datePart.split("/").map(Number);
+          if (!y || !m || !d) continue;
+          const monthKey = `${y}-${m}`;
+          if (monthKey !== lastMonthKey) {
+            const sep = document.createElement("div");
+            sep.className = "month-sep";
+            sep.textContent = `${m}月`;
+            listEl.appendChild(sep);
+            lastMonthKey = monthKey;
+          }
+          const dateObj = new Date(y, m - 1, d);
+          const day = dateObj.getDay();
+          let dowTagHtml = "";
+          if (day === 6) dowTagHtml = `<span class="dow-tag dow-sat">土</span>`;
+          if (day === 0) dowTagHtml = `<span class="dow-tag dow-sun">日</span>`;
+          const card = document.createElement("div");
+          card.className = "card";
+          if (day === 6) card.classList.add("sat");
+          if (day === 0) card.classList.add("sun");
+          const mapUrl = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(ev.location);
+          card.innerHTML = `
+            <div class="meta">
+              <span class="label">日時：</span>
+              ${escapeHtml(ev.start)}〜${escapeHtml(ev.end)}
+              ${dowTagHtml}
+            </div>
+            <div class="meta">
+              <span class="label">場所：</span>
+              <a class="loc-link" href="${mapUrl}" target="_blank">
+                ${escapeHtml(ev.location)}
+              </a>
+            </div>
+            ${ev.description ? `<pre>${escapeHtml(ev.description)}</pre>` : ``}
+          `;
+          listEl.appendChild(card);
+        }
+      }
+      function escapeHtml(s) {
+        return String(s ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+      window.addEventListener("load", () => {
+        const listEl = document.getElementById("list");
+        renderEvents(listEl, events);
+      });
+    </script>
+  </body>
+</html>
