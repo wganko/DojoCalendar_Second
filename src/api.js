@@ -1,3 +1,23 @@
+/**
+ * Write debug log to "ログ" sheet
+ */
+function writeLog_(message, data) {
+  try {
+    const ss = SpreadsheetApp.openById(CONFIG.memberSheetId);
+    let logSheet = ss.getSheetByName("ログ");
+    if (!logSheet) {
+      logSheet = ss.insertSheet("ログ");
+      logSheet.appendRow(["タイムスタンプ", "メッセージ", "データ"]);
+    }
+    const timestamp = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss");
+    const dataStr = data ? JSON.stringify(data) : "";
+    logSheet.appendRow([timestamp, message, dataStr]);
+  } catch (err) {
+    // Log write failed, but don't block main flow
+    console.error("Failed to write log:", err);
+  }
+}
+
 function mergeLiffStateParams_(e) {
   const params = (e && e.parameter) ? { ...e.parameter } : {};
   const rawState = params['liff.state'];
@@ -129,11 +149,15 @@ function recordUserAccess_(payload) {
   const displayName = payload && payload.displayName ? String(payload.displayName) : "";
   const bambooName = payload && payload.bambooName ? String(payload.bambooName) : "";
 
+  writeLog_("recordUserAccess_ called", { userId, displayName, bambooName });
+
   if (!userId) {
+    writeLog_("ERROR: userId missing", {});
     Logger.log("recordUserAccess_: userId missing");
     return "ERROR: userId missing";
   }
   if (!CONFIG.memberSheetId) {
+    writeLog_("ERROR: memberSheetId not configured", {});
     Logger.log("memberSheetId not configured");
     return "ERROR: memberSheetId not configured";
   }
@@ -141,13 +165,16 @@ function recordUserAccess_(payload) {
   try {
     const sheet = SpreadsheetApp.openById(CONFIG.memberSheetId).getSheetByName(CONFIG.memberSheetName);
     if (!sheet) {
+      writeLog_("ERROR: Sheet not found", { sheetName: CONFIG.memberSheetName });
       Logger.log("Sheet not found: " + CONFIG.memberSheetName);
       return "ERROR: sheet not found";
     }
 
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     const col = buildHeaderIndex_(headers);
+    writeLog_("Headers found", { col });
     if (col.userId < 0 || col.accessedAt < 0) {
+      writeLog_("ERROR: required columns not found", { col });
       return "ERROR: required columns not found";
     }
     const lastRow = sheet.getLastRow();
@@ -174,11 +201,13 @@ function recordUserAccess_(payload) {
         rowValues[Number(idx)] = updates[idx];
       });
       sheet.getRange(targetRow, 1, 1, headers.length).setValues([rowValues]);
+      writeLog_("Access updated", { userId, timestamp });
       Logger.log("Access updated for userId: " + userId + " at " + timestamp);
       return "OK: access updated";
     }
 
     if (col.number < 0) {
+      writeLog_("ERROR: number column not found", { col });
       return "ERROR: number column not found";
     }
     const numberValues = data.map(r => Number(r[col.number]) || 0);
@@ -190,9 +219,11 @@ function recordUserAccess_(payload) {
     newRow[col.lineName] = displayName;
     newRow[col.bambooName] = bambooName;
     sheet.appendRow(newRow);
+    writeLog_("Access recorded (new row)", { userId, timestamp, no: nextNo });
     Logger.log("Access recorded (new row) for userId: " + userId + " at " + timestamp);
     return "OK: access recorded (new row)";
   } catch (err) {
+    writeLog_("ERROR in recordUserAccess_", { errorMessage: err.toString() });
     Logger.log("Error in recordUserAccess_: " + err.toString());
     return "ERROR: " + err.toString();
   }
